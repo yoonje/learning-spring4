@@ -114,3 +114,64 @@
   - 객체를 생성하고 관리하면서 의존관계를 연결해 주는 것
   - ApplicationContext를 스프링 컨테이너라고 함
   - 스프링 컨테이너는 @Configuration 이 붙은 코드를 설정(구성) 정보로 사용한다. 여기서 @Bean 이라 적힌 메서드를 모두 호출해서 반환된 객체를 스프링 컨테이너에 등록하고 이렇게 스프링 컨테이너에 등록된 객체를 스프링 빈이라고함
+
+## 스프링 컨테이너와 스프링 빈
+
+#### 스프링 컨테이너
+- 스프링 컨테이너 생성
+  ```java
+  ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
+  ```
+  - ApplicationContext라는 인터페이스는 스프링 컨테이너라고 하고 AnnotationConfigApplicationContext은 구현체 중 하나
+  - XML을 기반으로 만들 수 있고, 애노테이션 기반의 자바 설정 클래스를 만듦
+- 스프링 컨테이너 생성 및 빈 등록
+  - 스프링 컨테이너를 생성할 때는 파라미터로 구성 정보를 지정 받음
+  - 파라미터로 넘어온 설정 클래스 정보를 사용해서 스프링 빈을 등록(빈 이름은 항상 다른 이름을 부여)
+- 스프링 빈 의존관계 설정
+  - 스프링 컨테이너는 설정 정보를 참고해서 의존관계를 주입
+- 컨테이너에 등록된 모든 빈 조회
+  - ApplicationContext의 getBeanDefinitionNames()는 스프링에 등록된 모든 빈 이름을 조회
+  - ApplicationContext의 getBean()은 빈의 이름으로 빈 객체(인스턴스)를 조회
+  - BeanDefinition의 getRole()을 통해서 스프링 내부의 빈이 구분이 가능한데, ROLE_APPLICATION은 일반적으로 사용자가 정의한 빈이고 ROLE_INFRASTRUCTURE은 스프링이 내부에서 사용하는 빈
+
+#### 스프링 빈
+- 스프링 빈 기본 조회(1개)
+  - ApplicationContext.getBean(타입)
+  - ApplicationContext.getBean(빈 이름, 타입)
+- 스프링 빈 동일한 타입이 둘 이상 조회
+  - ApplicationContext.getBeansOfType() 을 사용하면 해당 타입의 모든 빈을 조회
+- 스프링 빈 상속 관계 조회
+  - 부모 타입으로 조회하면, 자식 타입도 함께 조회
+
+#### BeanFactory와 ApplicationContext
+- BeanFactory
+  - 스프링 컨테이너의 최상위 인터페이스
+  - 스프링 빈을 관리하고 조회하는 역할을 담당
+  - getBean() 을 제공
+- ApplicationContext
+  - BeanFactory 기능을 모두 상속받아서 제공
+  - BeanFactory에 여러가지 부가 기능이 추가된 것
+    - 메시지소스를 활용한 국제화 기능
+    - 환경변수
+    - 애플리케이션 이벤트
+    - 편리한 리소스 조회
+
+#### 다양한 설정 형식 지원
+- 애노테이션 기반 자바 코드 설정
+  - `AnnotationConfigApplicationContext` 클래스를 사용하면서 자바 코드로된 설정 정보를 넘긺
+- XML 설정
+  - `GenericXmlApplictionContext` 클래스를 사용하면서 xml 설정 파일을 넘긺
+
+
+#### BeanDefinition
+- BeanDefinition: @Bean이나 <bean> 당 각각 하나씩 메타 정보가 생성되는 `스프링 빈 설정 메타 정보`
+- BeanDefinition 정보
+  - BeanClassName: 생성할 빈의 클래스 명(자바 설정 처럼 팩토리 역할의 빈을 사용하면 없음)   
+  - factoryBeanName: 팩토리 역할의 빈을 사용할 경우 이름, 예) appConfig   
+  - factoryMethodName: 빈을 생성할 팩토리 메서드 지정, 예) memberService
+  - Scope: 싱글톤(기본값)
+  - lazyInit: 스프링 컨테이너를 생성할 때 빈을 생성하는 것이 아니라, 실제 빈을 사용할 때 까지 최대한 생성을 지연처리 하는지 여부
+  - InitMethodName: 빈을 생성하고, 의존관계를 적용한 뒤에 호출되는 초기화 메서드 명   
+  - DestroyMethodName: 빈의 생명주기가 끝나서 제거하기 직전에 호출되는 메서드 명   
+  - Constructor arguments, Properties: 의존관계 주입에서 사용 (자바 설정 처럼 팩토리 역할의 빈을 사용하면 없음)
+- BeanDefinition에 대해서는 너무 깊이있게 이해하기 보다는, 스프링이 다양한 형태의 설정 정보를 BeanDefinition으로 추상화해서 사용하는 것 정도만 이해
