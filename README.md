@@ -273,7 +273,138 @@
 
 ## 의존관계 자동 주입
 
-####
+#### 의존관계 주입 방법
+- 생성자 주입
+  - 생성자를 통해서 의존 관계를 주입 받는 방법
+  - 컴포넌트가 스프링 빈에 등록 될 때 생성자가 호출되는데 그때 스프링 컨테이너에서 필요한 의존관계들을 주입
+  - 생성자 호출시점에 딱 1번만 호출되는 것이 보장
+  - `불변 의존고관계와 필수 의존관계`에 사용
+  - 가장 권장되는 의존관계 주입 방법
+  - 생성자가 단 1개라면 스프링 빈에 대해서 @Autowired를 생략 가능
+  ```java
+  @Component
+  public class OrderServiceImpl implements OrderService {
+      private final MemberRepository memberRepository;
+      private final DiscountPolicy discountPolicy;
+
+      @Autowired
+      public OrderServiceImpl(MemberRepository memberRepository, DiscountPolicy discountPolicy) {
+        this.memberRepository = memberRepository;
+        this.discountPolicy = discountPolicy; 
+      }
+  }
+  ```
+
+- 수정자 주입
+  - setter라 불리는 필드의 값을 변경하는 수정자 메서드를 통해서 의존관계를 주입하는 방법
+  - `선택, 변경 가능성이 있는 의존관계`에 특수하게 사용
+  - 자바빈 프로퍼티 규약의 수정자 메서드 방식을 사용하는 방법
+  ```java
+   @Component
+    public class OrderServiceImpl implements OrderService {
+        private MemberRepository memberRepository;
+        private DiscountPolicy discountPolicy;
+
+        @Autowired
+        public void setMemberRepository(MemberRepository memberRepository) {
+          this.memberRepository = memberRepository; 
+        }
+        
+        @Autowired
+        public void setDiscountPolicy(DiscountPolicy discountPolicy) {
+          this.discountPolicy = discountPolicy; 
+        }
+    }
+  ```
+
+- 필드 주입
+  - 필드에 어노테이션을 통해서 의존관계를 주입하는 방법
+  - 코드가 간결해서 많은 개발자들을 유혹하지만 외부에서 변경이 불가능해서 테스트 하기 힘들다는 치명적인 단점이 존재
+  - DI 프레임워크가 없으면 아무것도 할 수 없는 코드가 되어 애플리케이션의 실제 코드와 관계 없는 테스트 코드를 만들 수 없음
+  - 권장되지 않은 방법
+  > 참고: 순수한 자바 테스트 코드는 @Autowired가 동작하지 않아서 @SpringBootTest 처럼 스 프링 컨테이너를 테스트에 통합한 경우에만 가능
+
+- 일반 메서드 주입
+  - 일반 메서드를 통해서 주입 받는 방법
+  - 일반적으로 사용되지 않는 방법
+- 의존 관계 주입 주의 사항
+  - `의존관계 자동 주입은 스프링 컨테이너가 관리하는 스프링 빈이어야 동작`하므로 스프링 빈이 아닌 클래스에서는 @Autowired 코드를 적용해도 아무 기능도 동작하지 않음
+
+#### 옵션 처리
+- 옵션 처리
+  - 주입할 스프링 빈이 없어도 동작해야 할 때 사용
+  - @Autowired만 사용하면 required 옵션의 기본값이 true로 되어 있어서 자동 주입 대상이 없으면 오류가 발생하는 것을 방지하기 위해 옵션 처리
+- 옵션 처리
+  - Autowired(required=false) : 자동 주입할 대상이 없으면 메서드 자체가 호출 안되게 만듦
+  - org.springframework.lang.@Nullable : 자동 주입할 대상이 없으면 null이 입력
+  - Optional<> : 자동 주입할 대상이 없으면 Optional.empty가 입력, 자바의 기능
+
+#### 생성자 주입을 선택해야하는 이유
+- 불변
+  - 대부분의 경우 불변한 의존관계가 이상적임
+  - 대부분의 의존관계 주입은 한번 일어나면 애플리케이션 종료시점까지 의존관계를 변경할 일이 없음
+  - 수정자 주입을 사용하면, setXxx 메서드를 public으로 열어두어야하므로 누군가 실수로 변경할 수 도 있고, 변경하면 안되는 메서드를 열어두는 것은 좋은 설계 방법이 아님
+- 누락
+  - 생성자 주입을 사용하면 주입 데이터를 누락 했을 때 컴파일 오류가 발생하므로 IDE에서 바로 어떤 값을 필수로 주입해야 하는지 알 수 있음
+- final
+  - 생성자 주입을 사용하면 필드에 final 키워드를 사용할 수 있어서 `생성자에서 혹시라도 값이 설정 되지 않는 오류를 컴파일 시점에 막아줌`
+  - 생성자이 아닌 방법들은 final 키워드를 사용할 수 없음
+
+#### 롬복과 생성자 의존관계 주입
+- 롬복
+  - 대부분이 다 불변이고, 그래서 다음과 같이 생성자에 final 키워드를 사용 -> 생성자를 만들기 귄찮아짐
+  - 필드 주입처럼 좀 편리하게 사용하는 방법으로 `롬복`을 이용 가능
+  - 롬복 라이브러리가 제공하는 `@RequiredArgsConstructor` 기능을 사용하면 final이 붙은 필드를 모아서 생성자를 자동으로 만들어줌
+
+#### 조회 값이 2개 이상인 경우 해결 방법
+- 문제: 타입으로 조회하면 선택된 빈이 2개 이상일 때 문제가 발생하는데, 클래스의 하위 타입이 여러 개인 상황에서 하위 타입으로 지정하여 DIP를 위배하지 않으면서 문제 해결하는 것은 어려움
+- 해결 방법
+  - @Autowired의 필드 명 매칭
+    - 타입이 동일한 빈이 복수 개인 경우 타입 매칭에 실패하지만 `파라미터 이름으로 빈 이름을 추가적으로 매칭하는 기능`
+  - @Qualifier
+    - 주입 시 추가적인으로 @Qualifier 는 추가 구분자를 붙여주는 방법
+    - 빈 등록시 @Qualifier를 붙여줘야하고 주입시에 @Qualifier를 붙여주고 등록한 이름을 적어줘야함\
+    - @Qualifier끼리 매
+    - @Qualifier 를 찾는 용도로만 사용하는게 명확한 방법
+    ```java
+    @Component
+    @Qualifier("fixDiscountPolicy")
+    public class FixDiscountPolicy implements DiscountPolicy {}
+
+    @Autowired
+    public OrderServiceImpl(MemberRepository memberRepository, @Qualifier("mainDiscountPolicy") DiscountPolicy discountPolicy) {
+      this.memberRepository = memberRepository; this.discountPolicy = discountPolicy;
+    }
+    ```
+  - @Primary
+    - @Primary는 우선순위(기본값)를 정하는 방법
+    - @Qualifier를 적용하여 함께 `자주 사용하는 방법`(@Qualifier 가 @Primary보다 우선권이 높음)
+    - 주요 사례: 코드에서 특별한 기능 으로 가끔 사용하는 서브 데이터베이스의 커넥션을 획득하는 스프링 빈이 있다고 생각해보자. 메인 데이터 베이스의 커넥션을 획득하는 스프링 빈은 @Primary 를 적용해서 조회하는 곳에서 @Qualifier 지정 없이 편리하게 조회하고, 서브 데이터베이스 커넥션 빈을 획득할 때는 @Qualifier 를 지정해서 명시적으로 획 득 하는 방식
+-  어노테이션 직접 만들어서 Qualifer 사용하기
+  - @Qualifier("mainDiscountPolicy") 이렇게 문자를 적으면 컴파일시 타입 체크가 안됨
+  ```java
+  @Target({ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER, ElementType.TYPE, ElementType.ANNOTATION_TYPE}) @Retention(RetentionPolicy.RUNTIME)
+  @Documented
+  @Qualifier("mainDiscountPolicy")
+  public @interface MainDiscountPolicy {
+  }
+  ```
+  ```java
+  @Autowired
+  public OrderServiceImpl(MemberRepository memberRepository, @MainDiscountPolicy DiscountPolicy discountPolicy) { 
+    this.memberRepository = memberRepository;
+    this.discountPolicy = discountPolicy; 
+  }
+  ```
+
+#### 자동, 수동 등록의 올바른 실무 운영 기준
+- `편리한 자동 기능을 기본으로 사용`이 권장
+  - 스프링 빈을 하나 등록할 때 @Component 만 넣어주면 끝나는 일을 @Configuration 설정 정보에 가서 @Bean 을 적고, 객체를 생성하고, 주입할 대상을 일일이 적어주는 과정은 상당히 번거로움
+  - 업무 로직 빈인 웹을 지원하는 컨트롤러, 핵심 비즈니스 로직이 있는 서비스, 데이터 계층의 로직을 처리하는 리포지토리 등에 적극 사용이 권장
+- `수동 등록을 사용하면 좋은 경우`
+  - `가술 지원 빈`은 기술적인 문제나 공통 관심사(AOP)를 처리할 때 주로 사용되는데, 데이터베이스 연결이나 공통 로그 처리처럼 업무 로직을 지원하기 위한 기술은 수동 빈 등록을 사용해서 명확하게 들어내는 것이 좋음
+  - 비즈니스 로직 중에서 다형성을 적극 활용할 때는 고민을 하고 사용
+  - 수동 빈으로 등록하거나 또는 자동으로 하면 특정 패키지에 같이 묶어두는게 좋음
 
 ## 빈 생명주기 콜백
 
