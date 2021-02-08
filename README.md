@@ -408,8 +408,104 @@
 
 ## 빈 생명주기 콜백
 
-####
+#### 빈 생명주기 
+- 빈 생명 주기: 스프링에서 객체의 초기화 작업과 종료 작업을 처리할 때 사용하는 라이프 사이클
+  - `객체 생성 -> 의존관계 주입`의 라이플 사이클을 가지고 자세히 보면 `스프링 컨테이너 생성 -> 스프링 빈 생성 -> 의존 관계 주입 초기화 콜백 -> 사용 -> 소멸전 콜백 -> 스프링 종료`
+  - 의존관계 주입이 다 끝난 다음에야 필요한 데이터를 사용할 수 있는 준비가 완료되므로 초기화 작업은 `의존관계 주입이 모두 완료되고 난 다음에 호출해야함`
+  - 초기화 콜백: 빈이 생성되고 빈의 의존관계 주입이 완료된 후 호출
+  - 호출 소멸 전 콜백: 빈이 소멸되기 직전에 호출
+- 빈 생명 주기 사용법
+  - 생성자 안에서 무거운 초기화 작업을 함께 하는 것 보다는 객체를 생성하는 부분과 초기화 하는 부분 을 명확하게 나누는 것이 유지보수 관점에서 좋음
+  - 의존관계 주입이 완료되면 스프링 빈에게 콜백 메서드를 통해서 초기화 콜백 호출
 
+#### 빈 생명주기 콜백을 지원 방식
+- 인터페이스(InitializingBean, DisposableBean)
+  - 외부 라이브러리에 적용할 수 없어서 거의 사용하지 않는 방법
+  - InitializingBean 은 afterPropertiesSet() 메서드로 초기화를 지원
+  - DisposableBean 은 destroy() 메서드로 소멸을 지원
+  ```java
+  public class NetworkClient implements InitializingBean, DisposableBean {
+      
+      private String url;
+      
+      public NetworkClient() {
+        System.out.println("생성자 호출, url = " + url); 
+      }
+        
+      public void setUrl(String url) { t
+          his.url = url;
+      }
+      
+      public void connect() {
+          System.out.println("connect: " + url); 
+      }
+      
+      public void call(String message) {
+          System.out.println("call: " + url + " message = " + message);
+      }
+
+      
+      public void disConnect() {
+          System.out.println("close + " + url); 
+      }
+
+      @Override
+      public void afterPropertiesSet() throws Exception {
+        connect();
+        call("초기화 연결 메시지");
+      }
+
+      @Override
+      public void destroy() throws Exception {
+            disConnect();
+      }
+  }
+  ```
+- 설정 정보에 초기화 메서드, 종료 메서드 지정
+  - @Bean(initMethod = "함수 이름", destroyMethod = "함수 이름") 처럼 초기화, 소멸 메서드를 지정 가능
+  - 스프링 빈이 스프링 코드에 의존하지 않아서 외부 라이브러리에도 초기화, 종료 메서드를 적용 가능
+  - 이 추론 기능은 close , shutdown 라는 이름의 메서드를 자동으로 호출하므로 배포할 때 주의
+- @PostConstruct, @PreDestory 애노테이션
+  - `가장 권장되는 방법`
+  - javax.annotation에 존재하는 자바 표준으로 스프링에 의존적이지 않은 자바 표준
+  - 매우 편리
+  - 외부 라이브러리를 초기화, 종료해야 하면 @Bean의 기능을 사용해야함
+  ```java
+  public class NetworkClient {
+
+      private String url;
+      
+      public NetworkClient() {
+        System.out.println("생성자 호출, url = " + url); 
+      }
+
+      public void setUrl(String url) { this.url = url;}
+
+      public void connect() {
+        System.out.println("connect: " + url); }
+
+      public void call(String message) {
+        System.out.println("call: " + url + " message = " + message);
+      }
+      
+      public void disConnect() {
+        System.out.println("close + " + url); 
+      }
+
+      @PostConstruct
+      public void init() {
+        System.out.println("NetworkClient.init"); 
+        connect();
+        call("초기화 연결 메시지");
+      }
+
+      @PreDestroy
+      public void close() {
+        System.out.println("NetworkClient.close");
+        disConnect();
+      }
+  }
+  ```
 ## 프로토 타입 스코프
 
 ####
